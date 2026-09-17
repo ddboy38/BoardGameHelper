@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>쎄클턴베이스 · 셋업 랜더마이저</title>
+<style>
+  :root{
+    --bg:#e8ecf4; --panel:#ffffff; --ink:#1e2635; --line:#c3ccdd;
+    --gold:#7fb2e5; --accent:#3a5a86;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+       background:var(--bg);color:var(--ink);}
+  header{background:linear-gradient(180deg,#2c3e5c,#16202f);color:#e9eef7;
+         padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+         position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  header h1{font-size:20px;margin:0;letter-spacing:1px;flex:1 1 auto}
+  header h1 small{font-weight:400;opacity:.8;font-size:13px;display:block}
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pcount label{font-size:13px;margin-right:4px}
+  select,button{font-family:inherit;font-size:14px;border-radius:8px;
+        border:1px solid var(--line);padding:8px 12px;cursor:pointer}
+  button.primary{background:var(--gold);color:#12203a;border:none;font-weight:700}
+  button.ghost,.ghost{background:#ffffff;color:#1e2635}
+  .backbtn{font-family:inherit;font-size:14px;font-weight:700;line-height:1;
+        border:1px solid var(--line);border-radius:8px;padding:9px 14px;cursor:pointer;
+        text-decoration:none;display:inline-flex;align-items:center}
+  .backbtn:hover{background:#e3eaf5}
+  button:active,.backbtn:active{transform:translateY(1px)}
+  main{max-width:1180px;margin:0 auto;padding:18px;
+       display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+        padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .card.wide{grid-column:1 / -1}
+  .card h2{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .card h2 .n{background:var(--accent);color:#fff;width:22px;height:22px;border-radius:50%;
+        display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto}
+  .hint{font-size:12px;color:#66738c;margin:0 0 10px}
+  .row{display:flex;flex-wrap:wrap;gap:8px}
+  .tile{border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:#fff;
+        font-size:13px;line-height:1.35;min-width:0}
+  .tile .t{font-weight:700}
+  .tile .s{font-size:12px;color:#5b6a80}
+  .ext{display:inline-flex;align-items:center;gap:6px;background:#3c4d6b;border-radius:8px;
+        padding:7px 12px;font-size:13px;cursor:pointer;user-select:none}
+  .ext input{accent-color:var(--gold);margin:0}
+  .ext-badge{display:inline-block;background:#7a5fb0;color:#fff;font-size:10px;font-weight:700;
+        border-radius:4px;padding:1px 5px;vertical-align:middle}
+  .row.col{flex-direction:column}
+  .tile.leader{display:flex;align-items:center;gap:8px;flex:1 1 180px}
+  .tile.leader .ix{background:#e3eaf5;border-radius:6px;font-size:11px;font-weight:700;
+        padding:2px 7px;color:#3a5a86;flex:0 0 auto}
+  .nat{font-weight:700;font-size:13px;color:#fff;border-radius:20px;padding:2px 10px;white-space:nowrap}
+  .n-ca{background:#c0392b} .n-eu{background:#2f6db0}
+  .n-jp{background:#b0345a} .n-us{background:#3a5a86}
+  .n-in{background:#d2812f}
+  .side{margin-left:auto;font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px;color:#fff}
+  .side-A{background:#2f7a5a} .side-B{background:#7a5fb0}
+  .tile.sponsor{display:flex;align-items:center;gap:10px}
+  .tile.sponsor .ord{background:var(--accent);color:#fff;width:22px;height:22px;border-radius:50%;
+        display:inline-flex;align-items:center;justify-content:center;
+        font-size:12px;font-weight:700;flex:0 0 auto}
+  .tile.sponsor .t{font-size:14px}
+  footer{max-width:1180px;margin:0 auto;padding:6px 18px 30px;font-size:12px;color:#66738c}
+  @media(max-width:760px){ main{grid-template-columns:1fr} header h1{font-size:17px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>쎄클턴베이스 · 셋업 랜더마이저
+    <small>Shackleton Base: A Journey to the Moon — 랜덤 셋업 생성기</small></h1>
+  <div class="controls">
+    <span class="pcount">
+      <label for="players">인원수</label>
+      <select id="players">
+        <option value="2">2인</option>
+        <option value="3">3인</option>
+        <option value="4" selected>4인</option>
+      </select>
+    </span>
+    <label class="ext"><input type="checkbox" id="extToggle"> 확장 포함</label>
+    <button class="primary" id="rollBtn">🎲 새로 세팅</button>
+    <a class="ghost backbtn" href="../index.html">← 돌아가기</a>
+  </div>
+</header>
+
+<main id="out"></main>
+<footer>
+  규칙 기준: Shackleton Base 룰북. 리더 4종족 · 후원기업 7종 중 3개 선정.
+</footer>
+
+<script>
+/* ===================== 데이터 (룰북 기준) ===================== */
+const LEADERS_BASE = [
+  { key:'ca', name:'캐나다', cls:'n-ca' },
+  { key:'eu', name:'유럽',   cls:'n-eu' },
+  { key:'jp', name:'일본',   cls:'n-jp' },
+  { key:'us', name:'USA',    cls:'n-us' },
+];
+const LEADERS_EXT = [
+  { key:'in', name:'인도',   cls:'n-in', ext:true },
+];
+const SIDES = ['A', 'B'];
+
+const SPONSORS_BASE = [
+  { name:'아르테미스 투어' },
+  { name:'문 마이닝' },
+  { name:'스페이스 로보틱스' },
+  { name:'에버그린 팜' },
+  { name:'스카이 와치' },
+  { name:'투 마스' },
+  { name:'셀레니움 리서치' },
+];
+const SPONSORS_EXT = [
+  { name:'언더문', ext:true },
+  { name:'루나',   ext:true },
+  { name:'제니스', ext:true },
+];
+const SPONSOR_COUNT = 3;
+
+/* ===================== 유틸 ===================== */
+const rndInt = n => Math.floor(Math.random() * n);
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = rndInt(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const pick = arr => arr[rndInt(arr.length)];
+const pickN = (arr, n) => shuffle(arr).slice(0, n);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* ===================== 셋업 생성 ===================== */
+function generate(players, ext){
+  const leaderPool  = ext ? LEADERS_BASE.concat(LEADERS_EXT)   : LEADERS_BASE;
+  const sponsorPool = ext ? SPONSORS_BASE.concat(SPONSORS_EXT) : SPONSORS_BASE;
+
+  /* 1. 리더 — 인원수만큼 서로 다른 국가를 뽑고, 각 리더의 A/B 면을 선택 */
+  const leaders = pickN(leaderPool, players).map(l => ({ ...l, side: pick(SIDES) }));
+
+  /* 2. 후원기업 — 3개를 순서대로 (1,2,3 순서가 의미 있음) */
+  const sponsors = pickN(sponsorPool, SPONSOR_COUNT);
+
+  return { players, ext, leaders, sponsors, leaderPool, sponsorPool };
+}
+
+/* ===================== 렌더링 ===================== */
+const extBadge = o => o.ext ? '<span class="ext-badge">확장</span>' : '';
+
+function render(setup){
+  const leaderTiles = setup.leaders.map((l, i) => `
+        <div class="tile leader">
+          <span class="ix">P${i + 1}</span>
+          <span class="nat ${l.cls}">${esc(l.name)}</span>${extBadge(l)}
+          <span class="side side-${l.side}">${l.side}면</span>
+        </div>`).join('');
+
+  const sponsorTiles = setup.sponsors.map((s, i) => `
+        <div class="tile sponsor">
+          <span class="ord">${i + 1}</span>
+          <span class="t">${esc(s.name)}</span>${extBadge(s)}
+        </div>`).join('');
+
+  document.getElementById('out').innerHTML = `
+    <section class="card wide">
+      <h2><span class="n">1</span> 리더</h2>
+      <p class="hint">${setup.players}인 — ${setup.leaderPool.length}개 국가 중 선택, A면 / B면까지 결정했어요.</p>
+      <div class="row">${leaderTiles}</div>
+    </section>
+
+    <section class="card wide">
+      <h2><span class="n">2</span> 후원기업</h2>
+      <p class="hint">${setup.sponsorPool.length}개 중 3개 — 표시된 1 → 2 → 3 순서가 그대로 셋업 순서예요.</p>
+      <div class="row col">${sponsorTiles}</div>
+    </section>`;
+}
+
+/* ===================== 이벤트 ===================== */
+function roll(){
+  const players = parseInt(document.getElementById('players').value, 10);
+  const ext = document.getElementById('extToggle').checked;
+  render(generate(players, ext));
+}
+document.getElementById('rollBtn').addEventListener('click', roll);
+document.getElementById('players').addEventListener('change', roll);
+document.getElementById('extToggle').addEventListener('change', roll);
+roll();
+</script>
+</body>
+</html>
