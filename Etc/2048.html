@@ -1,0 +1,888 @@
+<title>2048 코너 마스터</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+:root{
+  --bg:#12131a;
+  --surface:#1b1d27;
+  --surface-2:#242631;
+  --tray:#0d0e13;
+  --cell:#2a2c39;
+  --ink:#ece4d0;
+  --ink-dim:#8b8fa3;
+  --brass:#c9a24b;
+  --brass-bright:#e8c46b;
+  --good:#7fbf8f;
+  --bad:#c25b4e;
+  --border:rgba(255,255,255,0.08);
+
+  --tile-2:#2b2e3d;    --tile-2-fg:#cfd2e0;
+  --tile-4:#343a52;    --tile-4-fg:#dfe1ec;
+  --tile-8:#4a4470;    --tile-8-fg:#f2eefb;
+  --tile-16:#6b4a86;   --tile-16-fg:#fbf3ff;
+  --tile-32:#8a4570;   --tile-32-fg:#fff0f6;
+  --tile-64:#a8425a;   --tile-64-fg:#fff0f1;
+  --tile-128:#c2523f;  --tile-128-fg:#fff5ef;
+  --tile-256:#d97a2f;  --tile-256-fg:#fff8ef;
+  --tile-512:#e0a12b;  --tile-512-fg:#3a2c05;
+  --tile-1024:#e8c235; --tile-1024-fg:#3a2c05;
+  --tile-2048:#f2df6b; --tile-2048-fg:#3a2c05;
+  --tile-hi:#fff6da;   --tile-hi-fg:#3a2c05;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12131a; --surface:#1b1d27; --surface-2:#242631; --tray:#0d0e13;
+    --cell:#2a2c39; --ink:#ece4d0; --ink-dim:#8b8fa3; --border:rgba(255,255,255,0.08);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12131a; --surface:#1b1d27; --surface-2:#242631; --tray:#0d0e13;
+  --cell:#2a2c39; --ink:#ece4d0; --ink-dim:#8b8fa3; --border:rgba(255,255,255,0.08);
+}
+:root[data-theme="light"]{
+  --bg:#eef0f3; --surface:#ffffff; --surface-2:#e4e6ec; --tray:#dde0e6;
+  --cell:#e9ebf0; --ink:#1b1d27; --ink-dim:#5b5f70; --border:rgba(20,20,30,0.10);
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'IBM Plex Sans', system-ui, sans-serif;
+  padding-inline:16px;
+}
+
+.page{
+  max-width:960px;
+  margin:0 auto;
+  padding-block:20px 40px;
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+
+/* ---------- header ---------- */
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.brand{display:flex; gap:12px; align-items:flex-start;}
+.brand-mark{font-size:28px; line-height:1;}
+h1{
+  font-family:'Big Shoulders Display', system-ui, sans-serif;
+  font-weight:800;
+  font-size:26px;
+  letter-spacing:0.02em;
+  margin:0;
+  text-wrap:balance;
+}
+.tagline{
+  margin:4px 0 0;
+  font-size:13px;
+  color:var(--ink-dim);
+  max-width:34ch;
+}
+.scoreboard{display:flex; gap:8px;}
+.score-tile{
+  background:var(--tray);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:8px 14px;
+  min-width:88px;
+  text-align:center;
+}
+.score-label{
+  display:block;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:10px;
+  letter-spacing:0.14em;
+  color:var(--brass);
+}
+.score-value{
+  display:block;
+  font-family:'Big Shoulders Display', system-ui, sans-serif;
+  font-weight:700;
+  font-size:22px;
+  font-variant-numeric: tabular-nums;
+  color:var(--ink);
+}
+
+/* ---------- layout ---------- */
+.layout{
+  display:grid;
+  grid-template-columns: minmax(0,1fr) 300px;
+  gap:20px;
+  align-items:start;
+}
+@media (max-width:720px){
+  .layout{grid-template-columns:1fr;}
+}
+
+/* ---------- board ---------- */
+.board-wrap{display:flex; flex-direction:column; gap:12px; min-width:0;}
+.board-panel{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:12px;
+}
+.board{
+  background:var(--tray);
+  border-radius:10px;
+  padding:8px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  aspect-ratio:1/1;
+  max-width:420px;
+  margin-inline:auto;
+  touch-action:pan-y;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.cell{
+  position:relative;
+  background:var(--cell);
+  border-radius:6px;
+  aspect-ratio:1/1;
+  cursor:pointer;
+  transition:outline-color 100ms ease, transform 80ms ease;
+  outline:1px solid transparent;
+  outline-offset:-1px;
+}
+.cell:hover{outline-color:var(--brass);}
+.cell:active{transform:scale(0.95);}
+.tile{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:6px;
+  font-family:'IBM Plex Mono', monospace;
+  font-weight:700;
+  font-size:clamp(18px,6.5vw,32px);
+  font-variant-numeric: tabular-nums;
+  pointer-events:none;
+}
+.tile.pop{animation: pop 160ms ease-out;}
+@media (prefers-reduced-motion: reduce){
+  .tile.pop{animation:none;}
+}
+@keyframes pop{
+  from{transform:scale(0.6); opacity:0.3;}
+  to{transform:scale(1); opacity:1;}
+}
+.tile[data-v="2"]{background:var(--tile-2); color:var(--tile-2-fg);}
+.tile[data-v="4"]{background:var(--tile-4); color:var(--tile-4-fg);}
+.tile[data-v="8"]{background:var(--tile-8); color:var(--tile-8-fg);}
+.tile[data-v="16"]{background:var(--tile-16); color:var(--tile-16-fg);}
+.tile[data-v="32"]{background:var(--tile-32); color:var(--tile-32-fg);}
+.tile[data-v="64"]{background:var(--tile-64); color:var(--tile-64-fg);}
+.tile[data-v="128"]{background:var(--tile-128); color:var(--tile-128-fg);}
+.tile[data-v="256"]{background:var(--tile-256); color:var(--tile-256-fg);}
+.tile[data-v="512"]{background:var(--tile-512); color:var(--tile-512-fg);}
+.tile[data-v="1024"]{background:var(--tile-1024); color:var(--tile-1024-fg); box-shadow:0 0 0 1px rgba(0,0,0,0.05) inset;}
+.tile[data-v="2048"]{background:var(--tile-2048); color:var(--tile-2048-fg); box-shadow:0 0 16px rgba(242,223,107,0.6);}
+.tile.hi{background:var(--tile-hi); color:var(--tile-hi-fg); box-shadow:0 0 18px rgba(255,246,218,0.7);}
+
+.course-panel{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  max-width:420px; margin-inline:auto; width:100%;
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:8px 12px;
+}
+.course-label{
+  font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em;
+  color:var(--brass); text-transform:uppercase; white-space:nowrap; flex-shrink:0;
+}
+.course-steps{display:flex; gap:6px; flex-wrap:wrap; align-items:center; min-width:0;}
+.course-step{
+  display:flex; align-items:center; justify-content:center;
+  width:26px; height:26px; border-radius:6px; flex-shrink:0;
+  background:var(--surface-2); color:var(--ink-dim);
+  font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:13px;
+  border:1px solid var(--border);
+}
+.course-step.first{
+  background:var(--brass); color:#241a05; border-color:var(--brass);
+  width:30px; height:30px; font-size:15px;
+}
+.course-arrow-sep{color:var(--ink-dim); font-size:11px;}
+.course-empty{font-size:12px; color:var(--ink-dim);}
+
+.status-line{
+  text-align:center; font-size:13px; font-weight:600; margin:0;
+  padding:8px 12px; border-radius:8px; background:var(--surface-2); color:var(--ink-dim);
+  max-width:420px; margin-inline:auto; width:100%;
+}
+.status-line.win{color:var(--good); background:color-mix(in srgb, var(--good) 16%, var(--surface-2));}
+.status-line.stuck{color:var(--bad); background:color-mix(in srgb, var(--bad) 14%, var(--surface-2));}
+
+.controls-row{display:flex; flex-direction:column; align-items:center; gap:6px; max-width:420px; margin-inline:auto; width:100%;}
+.controls-lr{display:flex; gap:6px;}
+
+.btn{
+  font-family:'IBM Plex Sans', system-ui, sans-serif;
+  font-weight:600;
+  font-size:14px;
+  color:var(--ink);
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:9px 14px;
+  cursor:pointer;
+}
+.btn:hover{border-color:var(--brass);}
+.btn:focus-visible{outline:2px solid var(--brass); outline-offset:2px;}
+.btn-primary{background:var(--brass); color:#241a05; border-color:var(--brass);}
+.btn-primary:hover{background:var(--brass-bright);}
+
+/* ---------- side panel ---------- */
+.panel{display:flex; flex-direction:column; gap:14px;}
+.panel-block{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+}
+.panel-block h2{
+  font-family:'Big Shoulders Display', system-ui, sans-serif;
+  font-size:16px;
+  letter-spacing:0.03em;
+  margin:0 0 10px;
+  color:var(--brass);
+  text-transform:uppercase;
+}
+.hint{font-size:12px; color:var(--ink-dim); margin:0 0 8px; line-height:1.5;}
+.hint:last-child{margin-bottom:0;}
+.hint strong{color:var(--ink);}
+
+.switch-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; cursor:pointer; font-size:14px; font-weight:500;
+}
+.switch-input{position:absolute; opacity:0; width:1px; height:1px;}
+.switch-ui{
+  position:relative; width:42px; height:24px; border-radius:999px;
+  background:var(--surface-2); border:1px solid var(--border); flex-shrink:0;
+  transition:background 120ms ease;
+}
+.switch-ui::after{
+  content:''; position:absolute; top:2px; left:2px; width:18px; height:18px;
+  border-radius:50%; background:var(--ink-dim); transition:transform 120ms ease, background 120ms ease;
+}
+.switch-input:checked + .switch-ui{background:color-mix(in srgb, var(--brass) 35%, var(--surface-2));}
+.switch-input:checked + .switch-ui::after{transform:translateX(18px); background:var(--brass);}
+.switch-input:focus-visible + .switch-ui{outline:2px solid var(--brass); outline-offset:2px;}
+
+.speed-row{display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12px; color:var(--ink-dim);}
+.speed-row input[type="range"]{flex:1; accent-color:var(--brass);}
+#speedLabel{width:44px; text-align:right; font-variant-numeric:tabular-nums;}
+
+.btn-row{display:flex; gap:8px; margin-top:12px;}
+.btn-row .btn{flex:1;}
+
+.dir-bars{display:flex; flex-direction:column; gap:8px;}
+.dir-row{display:grid; grid-template-columns:20px 1fr 42px; align-items:center; gap:8px;}
+.dir-label{font-family:'IBM Plex Mono', monospace; font-weight:600; color:var(--ink-dim); text-align:center;}
+.dir-track{height:8px; border-radius:999px; background:var(--surface-2); overflow:hidden;}
+.dir-fill{height:100%; border-radius:999px; background:var(--ink-dim); transition:width 120ms ease, background 120ms ease;}
+.dir-row.best .dir-label{color:var(--brass);}
+.dir-row.best .dir-fill{background:var(--brass);}
+.dir-pct{font-size:11px; color:var(--ink-dim); text-align:right; font-variant-numeric:tabular-nums;}
+
+.corner-status{
+  margin:12px 0 0; padding:8px 10px; border-radius:8px;
+  font-size:12px; background:var(--surface-2); color:var(--ink-dim);
+}
+.corner-status.ok{color:var(--good);}
+
+.strategy-list{
+  margin:0; padding-left:18px; font-size:13px; color:var(--ink-dim);
+  display:flex; flex-direction:column; gap:6px;
+}
+.strategy-list li::marker{color:var(--brass);}
+</style>
+
+<div class="page">
+  <header class="top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">🧩</span>
+      <div>
+        <h1>2048 코너 마스터</h1>
+        <p class="tagline">직접 타일을 놓고 조정하며, 코너 전략 + 단조성 휴리스틱으로 최선의 이동을 계산하는 2048</p>
+      </div>
+    </div>
+    <div class="scoreboard">
+      <div class="score-tile"><span class="score-label">SCORE</span><span class="score-value" id="score">0</span></div>
+      <div class="score-tile"><span class="score-label">BEST</span><span class="score-value" id="best">0</span></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="board-wrap">
+      <div class="board-panel">
+        <div class="board" id="board" role="group" aria-label="2048 보드. 칸을 클릭하면 타일을 놓거나 값을 올리고, 오른쪽 클릭하면 값을 내리거나 지웁니다."></div>
+      </div>
+      <div class="course-panel" id="coursePanel">
+        <span class="course-label">AI 추천 코스</span>
+        <div class="course-steps" id="courseSteps"></div>
+      </div>
+      <p class="status-line" id="statusLine" hidden></p>
+      <div class="controls-row">
+        <button class="btn" id="btnUp" type="button" aria-label="위로 이동">↑</button>
+        <div class="controls-lr">
+          <button class="btn" id="btnLeft" type="button" aria-label="왼쪽으로 이동">←</button>
+          <button class="btn" id="btnDown" type="button" aria-label="아래로 이동">↓</button>
+          <button class="btn" id="btnRight" type="button" aria-label="오른쪽으로 이동">→</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-block">
+        <h2>타일 편집</h2>
+        <p class="hint"><strong>왼쪽 클릭(탭)</strong> — 빈 칸에 타일 놓기, 있는 칸은 값 두 배로</p>
+        <p class="hint"><strong>오른쪽 클릭(길게 누르기)</strong> — 값 절반으로, 최소값이면 삭제</p>
+        <p class="hint">보드의 숫자는 2ⁿ의 지수(레벨)예요 — 레벨 1=2, 레벨 3=8, 레벨 11=2048</p>
+      </div>
+
+      <div class="panel-block">
+        <h2>자동 플레이</h2>
+        <label class="switch-row" for="autoToggle">
+          <span>AI 오토파일럿</span>
+          <input type="checkbox" id="autoToggle" class="switch-input">
+          <span class="switch-ui" aria-hidden="true"></span>
+        </label>
+        <div class="speed-row">
+          <label for="speed">속도</label>
+          <input type="range" id="speed" min="30" max="500" value="150" step="10">
+          <span id="speedLabel">보통</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btnStep" type="button">한 수만</button>
+          <button class="btn" id="btnNew" type="button">새 게임</button>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>AI 판단</h2>
+        <p class="hint">방향별 기대 점수 — 코너 유지 · 단조성 · 빈칸 · 매끄러움을 종합. 게임판 아래 'AI 추천 코스'에서 이어질 순서도 볼 수 있어요.</p>
+        <div class="dir-bars" id="dirBars"></div>
+        <p class="corner-status" id="cornerStatus">보드가 비어 있어요</p>
+      </div>
+
+      <div class="panel-block">
+        <h2>전략 요약</h2>
+        <ul class="strategy-list">
+          <li>최고 타일을 한쪽 코너에 고정</li>
+          <li>타일 값이 한 방향으로 커지도록 정렬 (단조성)</li>
+          <li>빈칸을 최대한 많이 확보</li>
+          <li>인접한 타일의 값 차이를 최소화 (매끄러움)</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SIZE = 4;
+  var MAX_TILE = Math.pow(2, 30);
+  var board, score, best, autoTimer, autoOn;
+
+  var boardEl = document.getElementById('board');
+  var scoreEl = document.getElementById('score');
+  var bestEl = document.getElementById('best');
+  var autoToggle = document.getElementById('autoToggle');
+  var speedInput = document.getElementById('speed');
+  var speedLabel = document.getElementById('speedLabel');
+  var dirBars = document.getElementById('dirBars');
+  var cornerStatus = document.getElementById('cornerStatus');
+  var statusLine = document.getElementById('statusLine');
+  var courseSteps = document.getElementById('courseSteps');
+
+  function loadBest(){
+    try{ return parseInt(localStorage.getItem('c2048-best') || '0', 10) || 0; }
+    catch(e){ return 0; }
+  }
+  function saveBest(v){
+    try{ localStorage.setItem('c2048-best', String(v)); }catch(e){}
+  }
+
+  function emptyBoard(){
+    var b = [];
+    for(var r=0;r<SIZE;r++){ b.push([0,0,0,0]); }
+    return b;
+  }
+
+  function cloneBoard(b){
+    return b.map(function(row){ return row.slice(); });
+  }
+
+  function emptyCells(b){
+    var cells = [];
+    for(var r=0;r<SIZE;r++) for(var c=0;c<SIZE;c++) if(b[r][c]===0) cells.push([r,c]);
+    return cells;
+  }
+
+  // ---- move logic: everything expressed as "slide left" on rows, with rotation ----
+  function slideRowLeft(row){
+    var vals = row.filter(function(v){ return v!==0; });
+    var gained = 0;
+    for(var i=0;i<vals.length-1;i++){
+      if(vals[i]!==0 && vals[i]===vals[i+1]){
+        vals[i]*=2;
+        gained += vals[i];
+        vals.splice(i+1,1);
+      }
+    }
+    while(vals.length<SIZE) vals.push(0);
+    return {row:vals, gained:gained};
+  }
+
+  function rotateCW(b){
+    var n = [];
+    for(var c=0;c<SIZE;c++){
+      var row=[];
+      for(var r=SIZE-1;r>=0;r--) row.push(b[r][c]);
+      n.push(row);
+    }
+    return n;
+  }
+
+  function toLeftFrame(b, dir){
+    if(dir==='left') return cloneBoard(b);
+    if(dir==='right') return b.map(function(row){ return row.slice().reverse(); });
+    if(dir==='up') return rotateCW(rotateCW(rotateCW(b)));
+    if(dir==='down') return rotateCW(b);
+  }
+  function fromLeftFrame(b, dir){
+    if(dir==='left') return cloneBoard(b);
+    if(dir==='right') return b.map(function(row){ return row.slice().reverse(); });
+    if(dir==='up') return rotateCW(b);
+    if(dir==='down') return rotateCW(rotateCW(rotateCW(b)));
+  }
+
+  function applyMove(b, dir){
+    var framed = toLeftFrame(b, dir);
+    var gained = 0;
+    var moved = false;
+    var result = framed.map(function(row){
+      var before = row.slice();
+      var res = slideRowLeft(row);
+      gained += res.gained;
+      if(!moved){
+        for(var i=0;i<SIZE;i++){ if(before[i]!==res.row[i]){ moved=true; break; } }
+      }
+      return res.row;
+    });
+    var finalBoard = fromLeftFrame(result, dir);
+    return {board:finalBoard, gained:gained, moved:moved};
+  }
+
+  function canMove(b){
+    var dirs=['left','right','up','down'];
+    for(var i=0;i<dirs.length;i++){
+      if(applyMove(b, dirs[i]).moved) return true;
+    }
+    return false;
+  }
+
+  // ---------------- heuristic evaluation ----------------
+  function log2(v){ return v<=0 ? 0 : Math.round(Math.log(v)/Math.LN2 * 1000)/1000; }
+
+  function evaluateBoard(b){
+    var empty = 0;
+    var maxVal = 0, maxPos=[0,0];
+    for(var r=0;r<SIZE;r++){
+      for(var c=0;c<SIZE;c++){
+        if(b[r][c]===0) empty++;
+        if(b[r][c]>maxVal){ maxVal=b[r][c]; maxPos=[r,c]; }
+      }
+    }
+
+    var monoScore = 0;
+    for(var r2=0;r2<SIZE;r2++){
+      var inc=0, dec=0;
+      for(var c2=0;c2<SIZE-1;c2++){
+        var a=log2(b[r2][c2]), bb=log2(b[r2][c2+1]);
+        if(a>bb) dec += a-bb; else inc += bb-a;
+      }
+      monoScore -= Math.min(inc,dec);
+    }
+    for(var c3=0;c3<SIZE;c3++){
+      var inc2=0, dec2=0;
+      for(var r3=0;r3<SIZE-1;r3++){
+        var a2=log2(b[r3][c3]), b2=log2(b[r3+1][c3]);
+        if(a2>b2) dec2 += a2-b2; else inc2 += b2-a2;
+      }
+      monoScore -= Math.min(inc2,dec2);
+    }
+
+    var smooth = 0;
+    for(var r4=0;r4<SIZE;r4++){
+      for(var c4=0;c4<SIZE;c4++){
+        if(b[r4][c4]===0) continue;
+        var v = log2(b[r4][c4]);
+        if(c4+1<SIZE && b[r4][c4+1]!==0) smooth -= Math.abs(v-log2(b[r4][c4+1]));
+        if(r4+1<SIZE && b[r4+1][c4]!==0) smooth -= Math.abs(v-log2(b[r4+1][c4]));
+      }
+    }
+
+    var inCorner = (maxPos[0]===0||maxPos[0]===SIZE-1) && (maxPos[1]===0||maxPos[1]===SIZE-1);
+    var cornerBonus = inCorner ? log2(maxVal) : 0;
+
+    var W_EMPTY = 2.7, W_MONO = 1.0, W_SMOOTH = 0.1, W_CORNER = 2.5;
+    return W_EMPTY*empty + W_MONO*monoScore + W_SMOOTH*smooth + W_CORNER*cornerBonus;
+  }
+
+  // one-ply expectimax: for each direction, average heuristic over random tile spawns
+  function scoreDirections(b){
+    var dirs = ['up','down','left','right'];
+    var scores = {};
+    dirs.forEach(function(dir){
+      var res = applyMove(b, dir);
+      if(!res.moved){ scores[dir] = null; return; }
+      var cells = emptyCells(res.board);
+      if(cells.length===0){
+        scores[dir] = evaluateBoard(res.board);
+        return;
+      }
+      var total = 0;
+      var sampleCells = cells.length > 6 ?
+        cells.slice().sort(function(){return Math.random()-0.5;}).slice(0,6) : cells;
+      sampleCells.forEach(function(cell){
+        var b2 = cloneBoard(res.board); b2[cell[0]][cell[1]] = 2;
+        var b4 = cloneBoard(res.board); b4[cell[0]][cell[1]] = 4;
+        total += 0.9*evaluateBoard(b2) + 0.1*evaluateBoard(b4);
+      });
+      scores[dir] = res.gained*0.5 + total/sampleCells.length;
+    });
+    return scores;
+  }
+
+  function bestDirection(b){
+    var scores = scoreDirections(b);
+    var best=null, bestScore=-Infinity;
+    ['up','down','left','right'].forEach(function(dir){
+      if(scores[dir]!==null && scores[dir] > bestScore){ bestScore = scores[dir]; best = dir; }
+    });
+    return {dir:best, scores:scores};
+  }
+
+  // ---------------- rendering ----------------
+  function render(changedCell){
+    boardEl.innerHTML = '';
+    for(var r=0;r<SIZE;r++){
+      for(var c=0;c<SIZE;c++){
+        var cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        var v = board[r][c];
+        if(v!==0){
+          var tile = document.createElement('div');
+          tile.className = 'tile' + (v>2048 ? ' hi' : '');
+          tile.dataset.v = v>2048 ? '2048' : String(v);
+          tile.textContent = log2(v);
+          if(changedCell && changedCell.r===r && changedCell.c===c) tile.classList.add('pop');
+          cell.appendChild(tile);
+        }
+        boardEl.appendChild(cell);
+      }
+    }
+    scoreEl.textContent = score;
+    bestEl.textContent = best;
+  }
+
+  function renderDirBars(scores, chosen){
+    var labels = {up:'↑', down:'↓', left:'←', right:'→'};
+    var vals = ['up','down','left','right'].map(function(d){ return scores[d]; });
+    var finite = vals.filter(function(v){ return v!==null; });
+    var max = finite.length ? Math.max.apply(null, finite.map(Math.abs).concat([1])) : 1;
+    dirBars.innerHTML = '';
+    ['up','down','left','right'].forEach(function(dir){
+      var row = document.createElement('div');
+      row.className = 'dir-row' + (dir===chosen ? ' best' : '');
+      var val = scores[dir];
+      var pct = val===null ? 0 : Math.max(4, Math.min(100, ((val + max) / (2*max)) * 100));
+      row.innerHTML = '<span class="dir-label">'+labels[dir]+'</span>' +
+        '<span class="dir-track"><span class="dir-fill" style="width:'+pct+'%"></span></span>' +
+        '<span class="dir-pct">'+(val===null ? '—' : Math.round(val))+'</span>';
+      dirBars.appendChild(row);
+    });
+  }
+
+  function updateCornerStatus(){
+    var maxVal=0, pos=[0,0];
+    for(var r=0;r<SIZE;r++) for(var c=0;c<SIZE;c++){ if(board[r][c]>maxVal){ maxVal=board[r][c]; pos=[r,c]; } }
+    if(maxVal===0){
+      cornerStatus.textContent = '보드가 비어 있어요 — 칸을 클릭해 타일을 놓아보세요.';
+      cornerStatus.className = 'corner-status';
+      return;
+    }
+    var inCorner = (pos[0]===0||pos[0]===SIZE-1) && (pos[1]===0||pos[1]===SIZE-1);
+    var lvl = log2(maxVal);
+    cornerStatus.textContent = inCorner ?
+      ('최고 타일(레벨 ' + lvl + ')이 코너에 고정되어 있음 ✓') :
+      ('최고 타일(레벨 ' + lvl + ')이 코너를 벗어남 — 위험');
+    cornerStatus.className = 'corner-status' + (inCorner ? ' ok' : '');
+  }
+
+  // repeatedly applies the AI's best direction to a copy of the board (no new
+  // tiles are added between steps, since placement is manual in this game) to
+  // preview the recommended sequence of moves.
+  function computeRecommendedCourse(startBoard, maxSteps){
+    var steps = [];
+    var b = cloneBoard(startBoard);
+    for(var i=0;i<maxSteps;i++){
+      var result = bestDirection(b);
+      if(!result.dir) break;
+      steps.push(result.dir);
+      b = applyMove(b, result.dir).board;
+    }
+    return steps;
+  }
+
+  function renderCourse(){
+    var labels = {up:'↑', down:'↓', left:'←', right:'→'};
+    var steps = computeRecommendedCourse(board, 6);
+    courseSteps.innerHTML = '';
+    if(steps.length===0){
+      courseSteps.innerHTML = '<span class="course-empty">추천할 이동이 없어요 — 타일을 놓아보세요</span>';
+      return;
+    }
+    steps.forEach(function(dir, i){
+      if(i>0){
+        var sep = document.createElement('span');
+        sep.className = 'course-arrow-sep';
+        sep.textContent = '›';
+        courseSteps.appendChild(sep);
+      }
+      var el = document.createElement('span');
+      el.className = 'course-step' + (i===0 ? ' first' : '');
+      el.style.opacity = String(Math.max(0.35, 1 - i*0.13));
+      el.textContent = labels[dir];
+      el.title = (i===0 ? '지금 바로 두면 좋은 방향: ' : (i+1) + '번째로 예상되는 방향: ') + dir;
+      courseSteps.appendChild(el);
+    });
+  }
+
+  function refreshStatusLine(){
+    var maxVal = 0;
+    for(var r=0;r<SIZE;r++) for(var c=0;c<SIZE;c++) if(board[r][c]>maxVal) maxVal=board[r][c];
+    var stuck = emptyCells(board).length===0 && !canMove(board);
+    if(maxVal>=2048){
+      statusLine.hidden = false;
+      statusLine.className = 'status-line win';
+      statusLine.textContent = '🎉 레벨 ' + log2(maxVal) + ' 타일 달성! (실제 값 ' + maxVal + ')';
+    } else if(stuck){
+      statusLine.hidden = false;
+      statusLine.className = 'status-line stuck';
+      statusLine.textContent = '이동할 곳이 없어요 — 오른쪽 클릭(길게 누르기)으로 타일을 지워보세요.';
+    } else {
+      statusLine.hidden = true;
+    }
+  }
+
+  // ---------------- game flow ----------------
+  function afterBoardChange(changedCell){
+    render(changedCell);
+    refreshAI();
+    renderCourse();
+    refreshStatusLine();
+    saveSnapshot();
+  }
+
+  function refreshAI(){
+    var result = bestDirection(board);
+    renderDirBars(result.scores, result.dir);
+    updateCornerStatus();
+    return result.dir;
+  }
+
+  function newGame(){
+    board = emptyBoard();
+    score = 0;
+    afterBoardChange();
+  }
+
+  function doMove(dir){
+    var res = applyMove(board, dir);
+    if(!res.moved) return false;
+    board = res.board;
+    score += res.gained;
+    if(score > best){ best = score; saveBest(best); }
+    afterBoardChange();
+    return true;
+  }
+
+  function manualMove(dir){ doMove(dir); }
+
+  function aiStep(){
+    var dir = refreshAI();
+    if(!dir){ stopAuto(); return; }
+    doMove(dir);
+  }
+
+  function increaseCell(r, c){
+    var v = board[r][c];
+    var nv = v===0 ? 2 : Math.min(v*2, MAX_TILE);
+    if(nv===v) return;
+    board[r][c] = nv;
+    afterBoardChange({r:r, c:c});
+  }
+
+  function decreaseCell(r, c){
+    var v = board[r][c];
+    if(v===0) return;
+    board[r][c] = v<=2 ? 0 : v/2;
+    afterBoardChange({r:r, c:c});
+  }
+
+  function startAuto(){
+    autoOn = true;
+    autoToggle.checked = true;
+    clearInterval(autoTimer);
+    autoTimer = setInterval(aiStep, parseInt(speedInput.value,10));
+  }
+  function stopAuto(){
+    autoOn = false;
+    autoToggle.checked = false;
+    clearInterval(autoTimer);
+  }
+
+  // ---------------- input: keyboard / buttons ----------------
+  document.addEventListener('keydown', function(e){
+    var map = {ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right'};
+    if(map[e.key]){
+      e.preventDefault();
+      stopAuto();
+      manualMove(map[e.key]);
+    }
+  });
+
+  document.getElementById('btnUp').addEventListener('click', function(){ stopAuto(); manualMove('up'); });
+  document.getElementById('btnDown').addEventListener('click', function(){ stopAuto(); manualMove('down'); });
+  document.getElementById('btnLeft').addEventListener('click', function(){ stopAuto(); manualMove('left'); });
+  document.getElementById('btnRight').addEventListener('click', function(){ stopAuto(); manualMove('right'); });
+  document.getElementById('btnStep').addEventListener('click', function(){ stopAuto(); aiStep(); });
+  document.getElementById('btnNew').addEventListener('click', function(){ stopAuto(); newGame(); });
+
+  autoToggle.addEventListener('change', function(){
+    if(autoToggle.checked) startAuto(); else stopAuto();
+  });
+
+  var speedNames = [[60,'매우 빠름'],[120,'빠름'],[220,'보통'],[350,'느림'],[9999,'매우 느림']];
+  function updateSpeedLabel(){
+    var v = parseInt(speedInput.value,10);
+    var name = speedNames.find(function(s){ return v<=s[0]; });
+    speedLabel.textContent = name ? name[1] : '보통';
+  }
+  speedInput.addEventListener('input', function(){
+    updateSpeedLabel();
+    if(autoOn) startAuto();
+  });
+
+  // ---------------- input: tile editing (left click = increase/place, right click = decrease/delete) ----------------
+  boardEl.addEventListener('click', function(e){
+    if(suppressNextClick){ suppressNextClick = false; return; }
+    var cell = e.target.closest('.cell');
+    if(!cell) return;
+    increaseCell(parseInt(cell.dataset.r,10), parseInt(cell.dataset.c,10));
+  });
+
+  boardEl.addEventListener('contextmenu', function(e){
+    e.preventDefault();
+    var cell = e.target.closest('.cell');
+    if(!cell) return;
+    decreaseCell(parseInt(cell.dataset.r,10), parseInt(cell.dataset.c,10));
+  });
+
+  // touch: tap = left click, swipe = move, long-press = right click
+  var touchStart = null;
+  var suppressNextClick = false;
+  var pressTimer = null;
+  var pressCell = null;
+  var longPressFired = false;
+
+  boardEl.addEventListener('touchstart', function(e){
+    var t = e.changedTouches[0];
+    touchStart = {x:t.clientX, y:t.clientY};
+    longPressFired = false;
+    var cellEl = e.target.closest('.cell');
+    pressCell = cellEl ? {r:parseInt(cellEl.dataset.r,10), c:parseInt(cellEl.dataset.c,10)} : null;
+    clearTimeout(pressTimer);
+    if(pressCell){
+      pressTimer = setTimeout(function(){
+        longPressFired = true;
+        suppressNextClick = true;
+        decreaseCell(pressCell.r, pressCell.c);
+        try{ if(navigator.vibrate) navigator.vibrate(15); }catch(err){}
+      }, 450);
+    }
+  }, {passive:true});
+
+  boardEl.addEventListener('touchmove', function(e){
+    if(!touchStart) return;
+    var t = e.changedTouches[0];
+    var dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+    if(Math.max(Math.abs(dx),Math.abs(dy)) > 12) clearTimeout(pressTimer);
+  }, {passive:true});
+
+  boardEl.addEventListener('touchend', function(e){
+    clearTimeout(pressTimer);
+    if(longPressFired){ touchStart = null; return; }
+    if(!touchStart) return;
+    var t = e.changedTouches[0];
+    var dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+    if(Math.max(Math.abs(dx),Math.abs(dy)) >= 20){
+      suppressNextClick = true;
+      stopAuto();
+      if(Math.abs(dx) > Math.abs(dy)) manualMove(dx>0 ? 'right' : 'left');
+      else manualMove(dy>0 ? 'down' : 'up');
+    }
+    touchStart = null;
+  }, {passive:true});
+
+  // ---------------- hot state (survive redeploys) ----------------
+  function saveSnapshot(){
+    try{
+      if(window.claude && window.claude.hot && window.claude.hot.snapshot){
+        window.claude.hot.snapshot({board:board, score:score, best:best});
+      }
+    }catch(e){}
+  }
+
+  function boot(data){
+    best = loadBest();
+    if(data && data.board){
+      board = data.board;
+      score = data.score || 0;
+      if(data.best && data.best>best){ best = data.best; }
+      render();
+      refreshAI();
+      renderCourse();
+      refreshStatusLine();
+    } else {
+      newGame();
+    }
+    updateSpeedLabel();
+  }
+
+  try{
+    if(window.claude && window.claude.hot && window.claude.hot.ready){
+      window.claude.hot.ready(function(data){ boot(data); });
+    } else {
+      boot(window.claude && window.claude.hot ? window.claude.hot.data : null);
+    }
+  }catch(e){ boot(null); }
+})();
+</script>
